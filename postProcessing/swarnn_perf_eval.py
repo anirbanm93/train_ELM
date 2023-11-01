@@ -227,13 +227,7 @@ def eval_classif_cv(regr_modelID: int, H, y, numofFold: int = 5,
             fig.savefig(save_path, dpi=300, bbox_inches='tight')
 
     return wout, accuracy_score_cv, precision_cv, recall_cv
-
-
-def memory_func(y_target, y_pred):
-    mfunc = (np.avg(y_target * y_pred) / (np.std(y_target) * np.std(y_pred))) ** 2
-
-    return mfunc
-
+                      
 
 def feat_lin_scaleto_exp_param(dataset: np.ndarray, exp_param_min: np.ndarray,
                                exp_param_max: np.ndarray, decimals: int = 2):
