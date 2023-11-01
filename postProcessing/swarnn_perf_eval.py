@@ -35,9 +35,6 @@ def vis_feat_rels(df_with_targetlabels: pd.core.frame.DataFrame, target_col_name
     df_with_targetlabels.boxplot(by=target_col_name, figsize=(10, 10), ax=ax,
                                  grid=False, patch_artist=True)
     fig.suptitle('')
-    # for ax in axes.flatten():
-    #     ax.set_xlabel([])
-    # fig.supxlabel(target_col_name)
 
     if save_paths is not None:
         pplt.savefig(save_paths[0], dpi=300, bbox_inches='tight')
@@ -86,7 +83,9 @@ def eval_classif(H, y, regr_modelID: int = 0,
     regr.fit(H_train, y_train_enc)
 
     # output weight matrix
-    wout = regr.coef_
+    model = {}
+    model['coeff'] = regr.coef_
+    model['intercept'] = regr.intercept_
 
     # Make predictions using the testing set
     output = regr.predict(H_test)
@@ -102,7 +101,7 @@ def eval_classif(H, y, regr_modelID: int = 0,
 
     print(classification_report(y_test, y_pred, labels=target_labels))
 
-    return wout
+    return model
 
 
 def eval_timeseries_regr_cv(regr_modelID: int, H, y, numofFold: int = 5):
@@ -116,41 +115,40 @@ def eval_timeseries_regr_cv(regr_modelID: int, H, y, numofFold: int = 5):
     regr = linregr[regr_modelID]()
 
     mse_cv = []
-    y_pred = []
-    y_test = []
-    wout = []
+    y_pred = {}
+    y_test = {}
+    coeff = {}
+    intercept = {}
 
     tss = TimeSeriesSplit(n_splits=numofFold)
 
     for i, (train_index, test_index) in enumerate(tss.split(H, y)):
-        print(f"Fold {i}:" + f' Length of training dataset: {len(train_index)}' +
+        print(f"Fold-{i}:" + f' Length of training dataset: {len(train_index)}' +
               f' Length of testing dataset: {len(test_index)}')
 
         H_train, H_test = H[train_index], H[test_index]
         y_train, ytest = y[train_index], y[test_index]
-        y_test.append(ytest)
+        y_test['fold-'+str(i)] = ytest
 
         # Train the model using the train sets
         regr.fit(H_train, y_train)
 
         # Output weight
-        wout.append(regr.coef_)
+        coeff['fold-'+str(i)] = regr.coef_
+        intercept['fold-'+str(i)] = regr.intercept_
 
         # Make predictions using the testing set
         output = regr.predict(H_test)
-        y_pred.append(output)
+        y_pred['fold-'+str(i)] = output
 
         # MSE for each fold
         mse_cv.append(np.round(mean_squared_error(ytest, output), 2))
 
     mse_cv = np.array(mse_cv)
-    y_pred = np.array(y_pred)
-    y_test = np.array(y_test)
-    wout = np.array(wout)
 
     print('MSE averaged over all the folds:', np.round(np.mean(mse_cv), 2))
 
-    return y_test[-1, ...], y_pred[-1, ...], wout[-1, ...], mse_cv
+    return y_test, y_pred, wout, mse_cv
 
 
 def eval_classif_cv(regr_modelID: int, H, y, numofFold: int = 5,
@@ -175,7 +173,7 @@ def eval_classif_cv(regr_modelID: int, H, y, numofFold: int = 5,
     recall_cv = []
     y_pred = []
     y_test = []
-    wout = []
+    coeff = []
 
     skf = StratifiedKFold(n_splits=numofFold, random_state=1, shuffle=True)
     for i, (train_index, test_index) in enumerate(skf.split(H, y)):
@@ -194,7 +192,7 @@ def eval_classif_cv(regr_modelID: int, H, y, numofFold: int = 5,
         regr.fit(H_train, y_train_enc)
 
         # Output weight
-        wout.append(regr.coef_)
+        coeff.append(regr.coef_)
 
         # Make predictions using the testing set
         output = oheenc.inverse_transform(regr.predict(H_test)).flatten()
