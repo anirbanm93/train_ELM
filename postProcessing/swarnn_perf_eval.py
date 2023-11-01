@@ -1,5 +1,5 @@
 """
-Evaluation of Spin-Wave Active Ring Neural Network (SWARNN) performing classification, regression and prediction tasks.
+Performance evaluation of Spin-Wave Active Ring Neural Network (SWARNN) performing classification, regression and prediction tasks.
 Author: Anirban Mukhopadhyay
 Affiliation: Prof. Anil Prabhakar's Magnonics group
 """
