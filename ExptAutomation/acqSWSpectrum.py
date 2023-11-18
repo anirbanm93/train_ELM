@@ -88,7 +88,7 @@ class AcqSWSpectrum:
             rfgen.write(str.encode('E0r0'))
             rfgen.write(str.encode('W' + str(elem2)))  # Power in dBm
             rfgen.write(str.encode('E1r1'))
-            print(f'{i}th RF power input: {elem2} V.')
+            print(f'{i}th RF power input: {elem2} dBm.')
 
             for j, fin in enumerate(self.genFreq):
                 rfgen.write(str.encode('f' + str(fin * 1e-06)))  # freq to RF Gen in MHz
@@ -222,7 +222,7 @@ class AcqSWSpectrum:
             rfgen.write(str.encode('E0r0'))
             rfgen.write(str.encode('W' + str(elem2)))  # Power in dBm
             rfgen.write(str.encode('E1r1'))
-            print(f'{i}th RF power input: {elem2} V.')
+            print(f'{i}th RF power input: {elem2} dBm.')
 
             for j, fin in enumerate(self.genFreq):
                 rfgen.write(str.encode('f' + str(fin * 1e-06)))  # freq to RF Gen in MHz
