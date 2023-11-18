@@ -1,12 +1,12 @@
 """
 Description: Physical Neural Network (PhNN) implemented in Spin-Wave Active Ring
 
-Author:RSA CONTROL: Morgan Allison(tektronix)
+Author:RSA CONTROL: Morgan Allison(tektronics)
        RF-GEN CONTROL: Shubham
        NI-DAQ: NI-DAQ blogs
        Modifications and Moku automation: Anirban Mukhopadhyay
 
-Affiliation: Prof. Anil Prabhakar's Magnonics Lab
+Affiliations: Prof. Anil Prabhakar's Magnonics Lab
 """
 import numpy as np
 import os
@@ -27,20 +27,23 @@ def gen_sumsinesigs(freq_list: list | np.ndarray, weight: list | np.ndarray):
     param freq_list: a list of user given frequencies
     return: a sum of sinusoidal signals with user given frequencies
     """
+    if isinstance(freq_list, list):
+        freq_list = np.array(freq_list)
+        
     # Find the maximum frequency
     fmax = max(freq_list)
 
     # Sampling period. Consider 10 samples per period for sinusoidal signals
-    Ts = (10 * fmax) ** -1
+    Ts = 1 / (10 * fmax)
 
     # Greatest common divisor of user given frequencies
     freq_list = freq_list.astype(int)
     print(f'IF frequencies: {freq_list} Hz')
 
-    freq0 = np.gcd.reduce(freq_list)
-    T0 = 1 / freq0
+    f0 = np.gcd.reduce(freq_list)
+    T0 = 1 / f0
 
-    print(f'We are sampling the signal with a period of {T0 * 1e03} ms at a rate {Ts * 1e09} ns.'
+    print(f'We are sampling the signal with a period of {T0 * 1e06} mus at a rate {Ts * 1e09} ns.'
           f'\nNumber of sample points are {int(T0 / Ts) + 1}.')
 
     # Time array. Maximum data length is 65535 samples
@@ -59,10 +62,10 @@ def gen_sumsinesigs(freq_list: list | np.ndarray, weight: list | np.ndarray):
     # Normalize the array between -1 and 1
     sig = sig / np.abs(sig).max()
 
-    return sig, freq0
+    return sig, f0
 
 
-def dbm2vpp(pwrdbm):
+def dbm2vpp(pwrdbm: list | np.ndarray):
     if isinstance(pwrdbm, list):
         pwrdbm = np.array(pwrdbm)
     return 2 * 10 ** (pwrdbm / 20 - 0.5)
@@ -72,11 +75,13 @@ class SWARNN:
 
     # define the experimental parameters
     def __init__(self, **kwargs):
+		
         # RF generator settings: frequency in Hz and power in dBm
         if kwargs.get('RFGpwr') is None and kwargs.get('RFGfreq') is None:
             print('No RF input is required for self-generation phenomenon in SWARO.')
         else:
-            self.genFreq = kwargs['RFGfreq']
+            # To avoid floating point arithmatic error
+            self.genFreq = np.round(kwargs['RFGfreq'])
             self.genPwr = kwargs['RFGpwr'] if max(kwargs['RFGpwr']) < 20 else sys.exit('WARNING: Greater than maximum '
                                                                                        'power limit. Terminating...')
 
@@ -84,14 +89,15 @@ class SWARNN:
         if kwargs.get('SAcenterfreq') is None:
             print("spectrum analyzer center frequency = input RF frequency.")
         else:
-            self.fc = kwargs['SAcenterfreq']
+            # To avoid floating point arithmatic error
+            self.fc = np.round(kwargs['SAcenterfreq'])
 
         self.reflevel = kwargs['SAref']
         self.rbw = kwargs['SArbw']
         self.tracepts = kwargs['SAtracepts']
         self.span = kwargs['SAspan']
 
-    def elm_sinedrive(self, savepath):
+    def elm_sinedrive(self, savepath: str, savefilename: str=None):
         """
         param savepath: path where data with the power spectra will be saved.
         return: drives the SWARO and records the spectra.
@@ -101,7 +107,8 @@ class SWARNN:
             os.makedirs(savepath)
             os.makedirs(savepath + '\\temp')
 
-        savefilename = savepath.split('\\')[-1]
+        if savefilename is None:
+            savefilename = savepath.split('\\')[-1]
 
         start = time.time()
 
@@ -124,10 +131,12 @@ class SWARNN:
             rfgen.write(str.encode('W' + str(pin)))  # Power in dBm
             rfgen.write(str.encode('E1r1'))
             print('RF power input: %0.2f dBm' % pin)
+            
             rfgen.write(str.encode('f' + str(fin * 1e-06)))  # freq to RF Gen in MHz
             rfgen.flushInput()
             print('drive frequency point: %0.2f Hz' % fin)
-            time.sleep(0.2)  # wait period of 200 ms
+            
+            time.sleep(0.5)  # wait period of 200 ms
 
             #################ACQUIRE/SAVE DATA#################
             specSet = config_spectrum(self.fc, self.reflevel, self.span, self.rbw,
@@ -151,18 +160,18 @@ class SWARNN:
         rfgen.close()
 
         with open(savepath + '\\' + savefilename + '_exptParams.txt', 'w+') as f:
-            f.write('\n\n SA settings: span = {} Hz, RBW = {} Hz, Ref. level = {} dBm, '
-                    'Trace pts = {},\n'.format(self.span, self.rbw, self.reflevel, self.tracepts) +
-                    'RF source settings: Input power = {} dBm, Freq. array = {} Hz,\n'.format(self.genPwr,
-                                                                                              self.genFreq)
-                    + 'Run time: {} seconds'.format(time.time() - start)
-                    )
+            f.write(f'SA settings: span = {self.span} Hz, RBW = {self.rbw} Hz, Ref. level = {self.reflevel} dBm, '
+                    f'Trace pts = {self.tracepts},\n'+
+                    f'RF source settings: Input power = {self.genPwr} dBm, Freq. array = {self.genFreq} Hz,\n'
+                    + f'Run time: {time.time() - start} seconds.')
             f.close()
 
         # Deleting temporary files
         shutil.rmtree(savepath + '\\temp')
 
-    def elm_mixeddrive(self, savepath: str, f_IF, Vpp_IF, weight: list | np.ndarray = None):
+    def elm_mixeddrive(self, savepath: str, f_IF: np.ndarray, Vpp_IF: np.ndarray,
+                       weight: list | np.ndarray = None, savefilename: str=None):
+		
         """
         param savepath: path where data with the power spectra will be saved.
         param f_IF: Each row has a list of frequencies for a specific input. Shape: (Num of instances, Num of features)
@@ -170,6 +179,7 @@ class SWARNN:
         param weight: weight of each sinusoidal input. Shape: (Num of instances, Num of features)
         return: drives the SWARO and records the spectra.
         """
+
         start = time.time()
 
         if max(Vpp_IF) < 2:
@@ -179,13 +189,20 @@ class SWARNN:
             if not os.path.isdir(savepath + '\\temp'):
                 os.makedirs(savepath + '\\temp')
 
-            savefilename = savepath.split('\\')[-1]
+            if savefilename is None:
+                savefilename = savepath.split('\\')[-1]
 
             rfgen = serial.Serial('COM3', 9600, timeout=None, parity=serial.PARITY_NONE, bytesize=serial.EIGHTBITS)
             if rfgen.isOpen():
                 rfgen.close()
 
             data = np.zeros((len(f_IF), self.tracepts))
+            
+            # To avoid floating point arithmatic error
+            # Example:
+            # (66.1 * 1e06) = 66099999.99999999
+            # np.round(66.1 * 1e06) = 66100000
+            f_IF = np.round(f_IF)
 
             # SEARCH RSA /CONNECT
             search_connect()
@@ -223,7 +240,7 @@ class SWARNN:
                 print('Loop number:', k)
 
                 # IF frequency
-                sig, freq0 = gen_sumsinesigs(f, w)
+                sig, f0 = gen_sumsinesigs(f, w)
 
                 # IF power converted into peak to peak voltage
                 # Amplitude ranges from +/- 1 V into 50 Ohm
@@ -232,7 +249,7 @@ class SWARNN:
 
                 # We have configurable on-device linear interpolation between LUT points.
                 awg.generate_waveform(channel=1, sample_rate='Auto',
-                                      lut_data=list(sig), frequency=float(freq0),
+                                      lut_data=list(sig), frequency=float(f0),
                                       amplitude=vpp, strict=False)
 
                 time.sleep(0.5)  # wait period of 500 ms
@@ -261,12 +278,10 @@ class SWARNN:
             awg.relinquish_ownership()
 
             with open(savepath + '\\' + savefilename + '_exptParams.txt', 'w+') as f:
-                f.write('\n\n SA settings: span = {} Hz, RBW = {} Hz, Ref. level = {} dBm, '
-                        'Trace pts = {},\n'.format(self.span, self.rbw, self.reflevel, self.tracepts) +
-                        'RF source settings: Input power = {} dBm, Freq. array = {} Hz,\n'.format(self.genPwr,
-                                                                                                  self.genFreq)
-                        + 'Run time: {} seconds'.format(time.time() - start)
-                        )
+                f.write(f'SA settings: span = {self.span} Hz, RBW = {self.rbw} Hz, Ref. level = {self.reflevel} dBm, '
+                        f'Trace pts = {self.tracepts},\n'+
+                        f'RF source settings: Input power = {self.genPwr} dBm, Freq. array = {self.genFreq} Hz,\n'
+                        + f'Run time: {time.time() - start} seconds.')
                 f.close()
 
             # Deleting temporary files
