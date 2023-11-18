@@ -29,7 +29,7 @@ def gen_sumsinesigs(freq_list: list | np.ndarray, weight: list | np.ndarray):
     """
     if isinstance(freq_list, list):
         freq_list = np.array(freq_list)
-        
+
     # Find the maximum frequency
     fmax = max(freq_list)
 
@@ -75,7 +75,7 @@ class SWARNN:
 
     # define the experimental parameters
     def __init__(self, **kwargs):
-		
+
         # RF generator settings: frequency in Hz and power in dBm
         if kwargs.get('RFGpwr') is None and kwargs.get('RFGfreq') is None:
             print('No RF input is required for self-generation phenomenon in SWARO.')
@@ -97,7 +97,7 @@ class SWARNN:
         self.tracepts = kwargs['SAtracepts']
         self.span = kwargs['SAspan']
 
-    def elm_sinedrive(self, savepath: str, savefilename: str=None):
+    def elm_sinedrive(self, savepath: str, savefilename: str = None):
         """
         param savepath: path where data with the power spectra will be saved.
         return: drives the SWARO and records the spectra.
@@ -105,6 +105,8 @@ class SWARNN:
 
         if not os.path.isdir(savepath):
             os.makedirs(savepath)
+		
+        if not os.path.isdir(savepath + '\\temp'):
             os.makedirs(savepath + '\\temp')
 
         if savefilename is None:
@@ -131,11 +133,11 @@ class SWARNN:
             rfgen.write(str.encode('W' + str(pin)))  # Power in dBm
             rfgen.write(str.encode('E1r1'))
             print('RF power input: %0.2f dBm' % pin)
-            
+
             rfgen.write(str.encode('f' + str(fin * 1e-06)))  # freq to RF Gen in MHz
             rfgen.flushInput()
             print('drive frequency point: %0.2f Hz' % fin)
-            
+
             time.sleep(0.5)  # wait period of 200 ms
 
             #################ACQUIRE/SAVE DATA#################
@@ -161,7 +163,7 @@ class SWARNN:
 
         with open(savepath + '\\' + savefilename + '_exptParams.txt', 'w+') as f:
             f.write(f'SA settings: span = {self.span} Hz, RBW = {self.rbw} Hz, Ref. level = {self.reflevel} dBm, '
-                    f'Trace pts = {self.tracepts},\n'+
+                    f'Trace pts = {self.tracepts},\n' +
                     f'RF source settings: Input power = {self.genPwr} dBm, Freq. array = {self.genFreq} Hz,\n'
                     + f'Run time: {time.time() - start} seconds.')
             f.close()
@@ -170,8 +172,8 @@ class SWARNN:
         shutil.rmtree(savepath + '\\temp')
 
     def elm_mixeddrive(self, savepath: str, f_IF: np.ndarray, Vpp_IF: np.ndarray,
-                       weight: list | np.ndarray = None, savefilename: str=None):
-		
+                       weight: list | np.ndarray = None, savefilename: str = None):
+
         """
         param savepath: path where data with the power spectra will be saved.
         param f_IF: Each row has a list of frequencies for a specific input. Shape: (Num of instances, Num of features)
@@ -186,6 +188,7 @@ class SWARNN:
 
             if not os.path.isdir(savepath):
                 os.makedirs(savepath)
+		    
             if not os.path.isdir(savepath + '\\temp'):
                 os.makedirs(savepath + '\\temp')
 
@@ -197,7 +200,7 @@ class SWARNN:
                 rfgen.close()
 
             data = np.zeros((len(f_IF), self.tracepts))
-            
+
             # To avoid floating point arithmatic error
             # Example:
             # (66.1 * 1e06) = 66099999.99999999
@@ -279,7 +282,7 @@ class SWARNN:
 
             with open(savepath + '\\' + savefilename + '_exptParams.txt', 'w+') as f:
                 f.write(f'SA settings: span = {self.span} Hz, RBW = {self.rbw} Hz, Ref. level = {self.reflevel} dBm, '
-                        f'Trace pts = {self.tracepts},\n'+
+                        f'Trace pts = {self.tracepts},\n' +
                         f'RF source settings: Input power = {self.genPwr} dBm, Freq. array = {self.genFreq} Hz,\n'
                         + f'Run time: {time.time() - start} seconds.')
                 f.close()
