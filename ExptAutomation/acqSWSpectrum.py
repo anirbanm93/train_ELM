@@ -25,13 +25,12 @@ import nidaqmx
 import sys
 import shutil
 
-
 os.add_dll_directory("C:\\Tektronix\\RSA_API\\lib\\x64")
 rsa = cdll.LoadLibrary("RSA_API.dll")
 
 
 class AcqSWSpectrum:
-        
+
     # define the experimental parameters
     def __init__(self, **kwargs):
 
@@ -57,10 +56,11 @@ class AcqSWSpectrum:
         self.span = kwargs['SAspan']
 
     # Propagating spin-wave transmission spectroscopy
-    def acqspec_swtx(self, savepath: str, savefilename: str=None, N_rep: int=1):
-        
+    def acqspec_swtx(self, savepath: str, savefilename: str = None, N_rep: int = 1):
+
         if not os.path.isdir(savepath):
             os.makedirs(savepath)
+        if not os.path.isdir(savepath + '\\temp'):
             os.makedirs(savepath + '\\temp')
 
         if savefilename is None:
@@ -97,7 +97,6 @@ class AcqSWSpectrum:
                 time.sleep(0.5)  # 500 ms wait
 
                 for k in range(N_rep):
-                    #################ACQUIRE/SAVE DATA#################
                     specSet = config_spectrum(fin, self.reflevel, self.span, self.rbw,
                                               self.tracepts)  # set desired RSA settings
                     traceData = acquire_spectrum(specSet)
@@ -136,10 +135,12 @@ class AcqSWSpectrum:
         shutil.rmtree(savepath + '\\temp')
 
     # Experiments on spin-wave active ring oscillator (SWARO)
-    def acqspec_swaro(self, savepath: str, savefilename: str=None, N_rep: int=1):
+    def acqspec_swaro(self, savepath: str, savefilename: str = None, N_rep: int = 1):
 
         if not os.path.isdir(savepath):
             os.makedirs(savepath)
+               
+        if not os.path.isdir(savepath + '\\temp'):
             os.makedirs(savepath + '\\temp')
 
         if savefilename is None:
@@ -185,10 +186,12 @@ class AcqSWSpectrum:
         print('Deleting temporary folder...')
         shutil.rmtree(savepath + '\\temp')
 
-    def acqSpec_drivenSWARO(self, savepath: str, savefilename: str=None, N_rep: int=1, get_sgspec: bool=False):
+    def acqSpec_drivenSWARO(self, savepath: str, savefilename: str = None, N_rep: int = 1, get_sgspec: bool = False):
 
         if not os.path.isdir(savepath):
             os.makedirs(savepath)
+               
+        if not os.path.isdir(savepath + '\\temp'):
             os.makedirs(savepath + '\\temp')
 
         if savefilename is None:
@@ -211,7 +214,7 @@ class AcqSWSpectrum:
         rfgen.write(str.encode('C1'))  # Select Channel 0/A or 1/B
 
         if get_sgspec:
-            self.acqspec_swaro(savepath=savepath, savefilename=savefilename+'_sgspec', N_rep=N_rep)
+            self.acqspec_swaro(savepath=savepath, savefilename=savefilename + '_sgspec', N_rep=N_rep)
             print('self-generation spectrum is obtained; Driving of SWARO will start now')
 
         # Driven SWARO
